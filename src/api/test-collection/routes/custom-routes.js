@@ -35,6 +35,11 @@ module.exports = {
         method: 'POST',
         path: '/votingC_newPollDeploy',
         handler: 'test-collection.votingC_newPollDeploy',
+      },
+      {
+        method: 'POST',
+        path: '/myRole',
+        handler: 'test-collection.myRole',
       }
     ],
   };

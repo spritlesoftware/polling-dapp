@@ -280,4 +280,19 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         ctx.body = "=== error: " + ee;
       }
     },
+
+    async myRole(ctx) {
+      //ctx.request.body.user
+      const entity = await strapi.service('plugin::users-permissions.user');
+
+      let cmt = "SELECT role_id FROM up_users_role_links where user_id=(select id from up_users where email=\'" + ctx.request.body.user.usermail + "\')";
+      return await strapi.db.connection.raw(cmt).then(async(obj) => {
+        if (obj[0].length != 0) {
+          // console.log(obj[0][0].role_id);
+          return JSON.parse("{\"user_role\": " + obj[0][0].role_id + "}");
+          
+        } else return JSON.parse("{}");
+      });
+    }
+
   }));
