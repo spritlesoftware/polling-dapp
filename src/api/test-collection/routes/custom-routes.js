@@ -38,6 +38,11 @@ module.exports = {
       },
       {
         method: 'POST',
+        path: '/getPollDetails',
+        handler: 'test-collection.getPollDetails',
+      },
+      {
+        method: 'POST',
         path: '/myRole',
         handler: 'test-collection.myRole',
       }

@@ -1,7 +1,7 @@
 'use strict';
 
 const ethers = require('ethers');
-const { formatEther, formatUnits } = require('ethers/lib/utils');
+const { formatEther, formatUnits, UnicodeNormalizationForm } = require('ethers/lib/utils');
 const { format } = require('mysql');
 
 /**
@@ -11,9 +11,10 @@ const { format } = require('mysql');
 const { createCoreController } = require('@strapi/strapi').factories;
 
 /**
- * getWeb3UserInit() will initalize the singer object using given params
+ * getWeb3UserInit() will initalize the singer object using given params. Internal function, as API call
  * @param {*} localUser Boolean variable, True if localuser going to be used, else False
  * @param {*} user If localUser is false, then user details should be passed
+ * @returns {*} signed user object
  */
 const getWeb3UserInit = async(localUser, user=null) => {
   const provider = new ethers.providers.AlchemyProvider(process.env.NETWORK, process.env.ALCHEMY_KEY);    // Define an Alchemy Provider
@@ -31,8 +32,15 @@ const getWeb3UserInit = async(localUser, user=null) => {
   return signer;
 };
 
+/**
+ * Connect to the given contract address to do the blockchain transactions. Internal funcion, not as a API call
+ * @param {*} userDet is user-details object with privatekey, if privatekey is not provided, default user's privatekey will be used
+ * @param {*} _contractAddress address of the contract deployed to the network
+ * @returns votingContract object
+ */
 const connectToContract = async (userDet, _contractAddress) => {
   try {
+    userDet = (userDet) ? userDet : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
     let user = (userDet.privateKey) ? userDet : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
 
     const votingContract = await getWeb3UserInit(false, user).then((signer) => {
@@ -45,12 +53,12 @@ const connectToContract = async (userDet, _contractAddress) => {
     return votingContract;
   }
   catch (err) {
+    console.log(err);
     return null;
   }
 };
 
 module.exports = createCoreController('api::test-collection.test-collection', ({ strapi }) => ({
-    // Method 1: Creating an entirely custom action
     async exampleAction(ctx) {
       try {
         console.log("inside example Action");
@@ -61,45 +69,49 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
     },
 
     /**
-     * This function is for get the user signed.
-     * @param {*} ctx is RequestContext object will have the request params
+     * This function is for get singin the user and initialize the singer object.
+     * @param {*} ctx is RequestContext object will have the request params with required params
+     * @returns the status of the user initialization
      */
     async signerInit(ctx) {
+
+      let returnable = {};
+
       try {
         if (ctx.request.body.localUser) {
           await getWeb3UserInit(true).then((signer) => {
-            // console.log("=== init done");
-            ctx.body = "Initialization done ";
             signer.getBalance().then(data => {
-              ctx.body = ctx.body + formatUnits(data, 'ether');
-              console.log("=== ", ctx.body);
+              returnable.userBalance = formatUnits(data, 'ether');
             });
           }).catch(err => {
-            // console.log("=== getWeb3UserInit() is on error: " + err);
-            ctx.body = "=== error: " + err;
+            returnable.error = err;
           });
         } else {
           if (!ctx.request.body.user) {
-            ctx.body = "=== error: privateKey not shared";
-            return;
+            returnable.error = "privateKey not shared";
+            return returnable;
           }
+          
           await getWeb3UserInit(false, ctx.request.body.user).then((signer) => {
-            // console.log("=== init done");
-            ctx.body = "Initialization done ";
             signer.getBalance().then(data => {
-              ctx.body = ctx.body + formatUnits(data, 'ether');
-              console.log("=== ", ctx.body);
+              returnable.userBalance = formatUnits(data, 'ether');
             });
           }).catch(err => {
-            // console.log("=== getWeb3UserInit() is on error: " + err);
-            ctx.body = "=== error: " + err;
+            returnable.error = err;
           });
         }
       } catch (err) {
-        ctx.body = "=== error: " + err;
+        returnable.error = err;
       }
+
+      return returnable;
     },
 
+    /**
+     * After singned-in the user, getting balance of the user from their ethereum wallet
+     * @param {*} ctx Context-request, with user.privatekey to get wallet balance
+     * @returns user balance from the ethereum wallet
+     */
     async getBalance(ctx) {
       try {
         let user = null;
@@ -111,23 +123,23 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
           };
         }
 
+        let returnable = {};
+
         await getWeb3UserInit(false, user).then((signer) => {
-          ctx.body = "signer bal: ";
           signer.getBalance().then(data => {
-            ctx.body = ctx.body + formatUnits(data, 'ether');
-            console.log("=== ", ctx.body);
+            returnable.balance = formatUnits(data, 'ether');
           });
         });
       } 
       catch (err) {
-        ctx.body = "=== error: " + err;
+        returnable.error = err;
       }
     },
 
     /**
      * Vote for the given candidate, to corresponding contract
      * @param {*} ctx Context-request, will contains contractId, user:{username, usermail, privatekey (to vote as a diff user)}, candidate
-     * @returns 
+     * @returns Voted status or acknowledgement
      */
     async votingC_vote(ctx) {
       
@@ -139,14 +151,16 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
 
       let contractAddress = null;
 
+      let error = null;
+
       try {
         checkAlreadyVoted = await entity.findOne(ctx.request.body.contractId).then(async(obj) => {
           if (obj == undefined) {
-            ctx.body = "Given contrac-id is not found on the DB";
+            error = "Given contrac-id is not found on the DB";
             return false;
           }
           if (obj.listOfVoters.find(element => element == ctx.request.body.user.usermail)) {
-            ctx.body = "already voted";
+            error = "already voted";
             return false;
           }
           listOfVoters = obj.listOfVoters;
@@ -155,18 +169,19 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         });
       } catch (ee) {
         console.log(ee);
-        ctx.body = "=== error: " + ee;
+        error = ee;
       }
 
       if (!checkAlreadyVoted)
-        return;
+        return {"error": error};
+
+      let returnable = {};
       
       await connectToContract(ctx.request.body.user, contractAddress)      // Connecting to contract
         .then(async (votingContract) => {
             await votingContract.voteForCandidate(ctx.request.body.candidate)   // Voting on Blockchain
               .then(async() => {          
-                console.log("voted");
-                ctx.body = "voted";
+                returnable.status = true;
                 
                 //**** update listOfVoters[] in DB - START **** */
                 listOfVoters.push(ctx.request.body.user.usermail);
@@ -182,58 +197,67 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
 
               }).catch((err) => {
                 console.log("=== error: ", err);
-                ctx.body = "=== error: " + err;
+                returnable.error = err;
               })
         });
+      return returnable;
     },
 
     /**
      * Getting the votes count for the given candidate, from corresponding contract
      * @param {*} ctx Contract-request, will contain the contract-id, user (optional), candidate
-     * @returns 
+     * @returns the votes count for given candidate and contract
      */
     async votingC_votesForCandidate(ctx) {
       
       let contractAddress = undefined;
+
+      let error = undefined;
+
+      let returnable = {};
+
       try {
         
-        await entity.findOne(ctx.request.body.contractId)   //Database search for contract with contract-id
+        await strapi.service('api::test-collection.test-collection').findOne(ctx.request.body.contractId)   //Database search for contract with contract-id
           .then(async(obj) => {
             if (obj == undefined) {
-              ctx.body = "Given contract-id is not found on the DB";
+              error = "Given contract-id is not found on the DB";
               return false;
             }
-            
             contractAddress = obj.contract_address;
           });
 
       } catch (ee) {
         console.log(ee);
-        ctx.body = "=== error: " + ee;
+        error = ee;
       }
 
       if (contractAddress == undefined)
-        return;
+        return {"error": error};
 
       await connectToContract(ctx.request.body.user, contractAddress)    //connect to contract for getting the voting counts
         .then(async (votingContract) => {
             await votingContract.totalVotesFor(ctx.request.body.candidate)
               .then((data) => {          
-                console.log("votes for Candidate: " + data);
-                ctx.body = "votes for Candidate: " + data;
+                returnable.votes = data;
               }).catch((err) => {
                 console.log("=== ", err);
-                ctx.body = "=== error " + err;
+                returnable.error = err;
               })
         });
+        
+      return returnable;
     },
 
     /**
      * To deploy a new Polling contract to the network
      * @param {*} ctx request context, with { user.privatekey, user.usermail}, statement and candidates
+     * @returns the new deployed contract address and contractId
      */
     async votingC_newPollDeploy(ctx) {
       let user = (ctx.request.body.user) ? ctx.request.body.user : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
+
+      let returnable = {};
 
       await getWeb3UserInit(false, user).then(async(signer) => {
         const contract_det = require(process.env.CONTRACT_ABI);
@@ -245,7 +269,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         await factory.deploy(ctx.request.body.statement, ctx.request.body.candidates).then(async(contract) => {
           // The address is available immediately, but the contract
           // is NOT deployed yet
-          console.log(contract.address);
+          // console.log(contract.address);
 
           // The transaction that the signer sent to deploy
           // contract.deployTransaction
@@ -254,7 +278,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
           //  - returns the receipt
           //  - throws on failure (the reciept is on the error)
           const recp = await contract.deployTransaction.wait();
-          ctx.body = recp.contractAddress;
+          returnable.contractAddress = recp.contractAddress;
         });
       });
 
@@ -264,7 +288,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
       try {
         let req = {
             "data": {
-                "contract_address": ctx.body,
+                "contract_address": returnable.contractAddress,
                 "state": "Polling",
                 "creator": ctx.request.body.user.usermail,
                 "listOfVoters": []
@@ -272,27 +296,115 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         };
         req.data.publishedAt = Date.now();
         await entity.create(req).then(async(obj) => {
-          console.log("obj_id: ", obj.id);
-          ctx.body = obj.id;
+          returnable.contracId = obj.id;
         });
       } catch (ee) {
         console.log(ee);
-        ctx.body = "=== error: " + ee;
+        returnable.error = ee;
       }
+
+      return returnable;
     },
 
+    /**
+     * To getting the Poll details, like poll statement and poll's list of candidates. This function will not cost us.
+     * @param {Context} ctx Request object, will contain the user.privatekey, contractId
+     * @returns the statement of the poll and candidates list
+     */
+    async getPollDetails(ctx) {
+
+      let contractAddress = undefined;
+      let error = undefined;
+
+      try {
+        await strapi.service('api::test-collection.test-collection').findOne(ctx.request.body.contractId)   //Database search for contract with contract-id
+          .then(async(obj) => {
+            if (obj == undefined) {
+              console.log("Given contract-id is not found on the DB");
+              error = "Given contract-id is not found on the DB";
+              return;
+              };
+            contractAddress = obj.contract_address;
+          });
+
+      } catch (ee) {
+        console.log(ee);
+        error = ee;
+      }
+
+      if (contractAddress == undefined)
+        return {"error": error};
+
+      let returnable = {};
+
+      await connectToContract(ctx.request.body.user, contractAddress)      // Connecting to contract
+        .then(async (votingContract) => {
+          await votingContract.getStatement()         //getting Statement of the poll
+              .then(async(data) => {     
+                returnable.statement = data;
+                await votingContract.getCandidates()    //getting Candidates of the poll
+                  .then(async(cands) => {
+                    returnable.candidates = cands;
+                  }).catch((err) => {
+                    console.log("=== ", err);
+                    error = err;
+                  });
+              }).catch((err) => {
+                console.log("=== ", err);
+                returnable.error = err;
+              })
+        });
+      
+      return returnable; 
+    },
+
+    /**
+     * Get the user-group of the given user's mail-id, and returns the currently open-polls
+     * @param {*} ctx Context-request will contains the user.usermail
+     * @returns corresponding user's userid if the given mail-id is registered
+     */
     async myRole(ctx) {
-      //ctx.request.body.user
       const entity = await strapi.service('plugin::users-permissions.user');
 
       let cmt = "SELECT role_id FROM up_users_role_links where user_id=(select id from up_users where email=\'" + ctx.request.body.user.usermail + "\')";
-      return await strapi.db.connection.raw(cmt).then(async(obj) => {
-        if (obj[0].length != 0) {
-          // console.log(obj[0][0].role_id);
-          return JSON.parse("{\"user_role\": " + obj[0][0].role_id + "}");
-          
-        } else return JSON.parse("{}");
+
+      let returnable = {};
+
+      returnable.role_id = await strapi.db.connection.raw(cmt).then(async(obj) => {
+        if (obj[0].length != 0)
+          return obj[0][0].role_id;
+        else 
+          return {};
       });
+
+      if (JSON.stringify(returnable.role_id) == "{}")
+        return returnable;
+
+      cmt = "SELECT id, created_at, creator, list_of_voters FROM test_collections where state=\'Polling\'";
+      
+      returnable.polls = await strapi.db.connection.raw(cmt).then(async (obj) => {
+        if (obj[0].length != 0)
+        {
+          return obj[0];
+        }
+        else 
+          return {};
+      });
+
+      for(let i=0;i<returnable.polls.length;i++) {    //for each live polls, iterating
+        
+        let votedPersons = JSON.parse(returnable.polls[i].list_of_voters);
+      
+        if (votedPersons.find(element => element == ctx.request.body.user.usermail))
+          returnable.polls[i].voted = true;
+        else
+          returnable.polls[i].voted = false;
+
+        returnable.polls[i].votesCount = votedPersons.length;
+        delete returnable.polls[i].list_of_voters;
+      }
+
+      return returnable;
     }
 
   }));
