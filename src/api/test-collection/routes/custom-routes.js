@@ -45,6 +45,11 @@ module.exports = {
         method: 'POST',
         path: '/myRole',
         handler: 'test-collection.myRole',
+      },
+      {
+        method: 'POST',
+        path: '/announceResult',
+        handler: 'test-collection.announceResult',
       }
     ],
   };

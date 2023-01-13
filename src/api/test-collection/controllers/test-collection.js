@@ -308,7 +308,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
 
     /**
      * To getting the Poll details, like poll statement and poll's list of candidates. This function will not cost us.
-     * @param {Context} ctx Request object, will contain the user.privatekey, contractId
+     * @param {Context} ctx Request object, will contain the user.privatekey, contractId. If ctx had "withVotesCount=true", then it'll returns with each candidates vote count till now
      * @returns the statement of the poll and candidates list
      */
     async getPollDetails(ctx) {
@@ -344,7 +344,18 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
                 returnable.statement = data;
                 await votingContract.getCandidates()    //getting Candidates of the poll
                   .then(async(cands) => {
-                    returnable.candidates = cands;
+                    if (ctx.request.body.withVotesCount) {
+                      returnable.candidates = [];
+                      for(let i=0;i<cands.length;i++) {
+                        let count = await votingContract.totalVotesFor(cands[i]).then(async(data) => {
+                          return data;      
+                        });
+                        let candidate = {"candidate": cands[i], "count": count};
+                        returnable.candidates.push(candidate);
+                      }
+                    } else {
+                      returnable.candidates = cands;
+                    }
                   }).catch((err) => {
                     console.log("=== ", err);
                     error = err;
@@ -352,7 +363,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
               }).catch((err) => {
                 console.log("=== ", err);
                 returnable.error = err;
-              })
+              });
         });
       
       return returnable; 
@@ -405,6 +416,51 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
       }
 
       return returnable;
+    },
+
+    /**
+     * Closes the contract and declaring the result
+     * @param {*} ctx Context request, with body parameters of user.privatekey, contractId
+     * @returns the winner candidate's name and voting count for the candidate
+     */
+    async announceResult(ctx) {
+
+      ctx.request.body.withVotesCount = true;
+
+      return await this.getPollDetails(ctx).then(async(op) => {
+        let max = {
+          "candidate": "",
+          "i": 0,
+          "count": 0
+        }
+  
+        let i = 0;
+        op.candidates.forEach(element => {
+          if(element.count > max.count)
+          {
+            max.count = element.count;
+            max.i = i;
+            max.candidate = element.candidate;
+          }
+          i++;
+        });
+
+
+        //**** update listOfVoters[] in DB - START **** */
+
+        let payload = {
+          "data": {
+            "state": "Polling_Ended",
+            "result": max.candidate
+          }
+        };
+
+        await strapi.entityService.update("api::test-collection.test-collection", ctx.request.body.contractId, payload);
+        //**** update listOfVoters[] in DB - END **** */
+
+        delete max.i;
+        return max;
+      });
     }
 
   }));
