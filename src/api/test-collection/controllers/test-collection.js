@@ -142,6 +142,10 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
      * @returns Voted status or acknowledgement
      */
     async votingC_vote(ctx) {
+
+      if (ctx.request.body.user == undefined) {
+        return {"error": "user.usermail is mandatory"};
+      }
       
       const entity = await strapi.service('api::test-collection.test-collection');
 
@@ -156,7 +160,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
       try {
         checkAlreadyVoted = await entity.findOne(ctx.request.body.contractId).then(async(obj) => {
           if (obj == undefined) {
-            error = "Given contrac-id is not found on the DB";
+            error = "Given contract-id is not found on the DB";
             return false;
           }
           if (obj.listOfVoters.find(element => element == ctx.request.body.user.usermail)) {
@@ -179,7 +183,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
       
       await connectToContract(ctx.request.body.user, contractAddress)      // Connecting to contract
         .then(async (votingContract) => {
-            await votingContract.voteForCandidate(ctx.request.body.candidate)   // Voting on Blockchain
+            await votingContract.Vote(ctx.request.body.candidate)   // Voting on Blockchain
               .then(async() => {          
                 returnable.status = true;
                 
@@ -204,58 +208,22 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
     },
 
     /**
-     * Getting the votes count for the given candidate, from corresponding contract
-     * @param {*} ctx Contract-request, will contain the contract-id, user (optional), candidate
-     * @returns the votes count for given candidate and contract
-     */
-    async votingC_votesForCandidate(ctx) {
-      
-      let contractAddress = undefined;
-
-      let error = undefined;
-
-      let returnable = {};
-
-      try {
-        
-        await strapi.service('api::test-collection.test-collection').findOne(ctx.request.body.contractId)   //Database search for contract with contract-id
-          .then(async(obj) => {
-            if (obj == undefined) {
-              error = "Given contract-id is not found on the DB";
-              return false;
-            }
-            contractAddress = obj.contract_address;
-          });
-
-      } catch (ee) {
-        console.log(ee);
-        error = ee;
-      }
-
-      if (contractAddress == undefined)
-        return {"error": error};
-
-      await connectToContract(ctx.request.body.user, contractAddress)    //connect to contract for getting the voting counts
-        .then(async (votingContract) => {
-            await votingContract.totalVotesFor(ctx.request.body.candidate)
-              .then((data) => {          
-                returnable.votes = data;
-              }).catch((err) => {
-                console.log("=== ", err);
-                returnable.error = err;
-              })
-        });
-        
-      return returnable;
-    },
-
-    /**
      * To deploy a new Polling contract to the network
      * @param {*} ctx request context, with { user.privatekey, user.usermail}, statement and candidates
      * @returns the new deployed contract address and contractId
      */
     async votingC_newPollDeploy(ctx) {
-      let user = (ctx.request.body.user) ? ctx.request.body.user : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
+      let user = null; //(ctx.request.body.user) ? ctx.request.body.user : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
+      //user = (ctx.request.body.user.privatekey) ? ctx.request.body.user : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
+
+      if (ctx.request.body.user) {
+        if (ctx.request.body.user.usermail == undefined) {
+          return {"error": "User object with usermail is mandatory"};
+        }
+        user = (ctx.request.body.user.privatekey) ? ctx.request.body.user : { "usermail": ctx.request.body.user.usermail, "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
+      } else {
+        return {"error": "User object with usermail is mandatory"};
+      }
 
       let returnable = {};
 
@@ -314,14 +282,13 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
     async getPollDetails(ctx) {
 
       let contractAddress = undefined;
-      let error = undefined;
 
       try {
         await strapi.service('api::test-collection.test-collection').findOne(ctx.request.body.contractId)   //Database search for contract with contract-id
           .then(async(obj) => {
             if (obj == undefined) {
               console.log("Given contract-id is not found on the DB");
-              error = "Given contract-id is not found on the DB";
+              returnable.error = "Given contract-id is not found on the DB";
               return;
               };
             contractAddress = obj.contract_address;
@@ -329,30 +296,33 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
 
       } catch (ee) {
         console.log(ee);
-        error = ee;
+        returnable.error = ee;
       }
 
       if (contractAddress == undefined)
-        return {"error": error};
+        return {"error": returnable};
 
       let returnable = {};
 
       await connectToContract(ctx.request.body.user, contractAddress)      // Connecting to contract
         .then(async (votingContract) => {
+
           await votingContract.getStatement()         //getting Statement of the poll
-              .then(async(data) => {     
-                returnable.statement = data;
+              .then(async(statement) => {     
+                returnable.statement = statement;
                 await votingContract.getCandidates()    //getting Candidates of the poll
                   .then(async(cands) => {
                     if (ctx.request.body.withVotesCount) {
-                      returnable.candidates = [];
-                      for(let i=0;i<cands.length;i++) {
-                        let count = await votingContract.totalVotesFor(cands[i]).then(async(data) => {
-                          return data;      
-                        });
-                        let candidate = {"candidate": cands[i], "count": count};
-                        returnable.candidates.push(candidate);
-                      }
+                      await votingContract.VoteInfo().then(async(data) => {
+                        returnable.candidates = [];
+                        for(let i=0;i<cands.length;i++) {
+                          let candidate = {"candidate": cands[i], "count": data[i].toNumber()};
+                          returnable.candidates.push(candidate);
+                        }
+                      }).catch((err) => {
+                        console.log("=== ", err);
+                        returnable.error = err;
+                      });
                     } else {
                       returnable.candidates = cands;
                     }

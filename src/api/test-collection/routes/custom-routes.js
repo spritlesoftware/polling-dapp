@@ -28,11 +28,6 @@ module.exports = {
       },
       {
         method: 'POST',
-        path: '/votingC_votesForCandidate',
-        handler: 'test-collection.votingC_votesForCandidate',
-      },
-      {
-        method: 'POST',
         path: '/votingC_newPollDeploy',
         handler: 'test-collection.votingC_newPollDeploy',
       },
