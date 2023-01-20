@@ -345,36 +345,40 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
      * @returns corresponding user's userid if the given mail-id is registered
      */
     async myRole(ctx) {
-      const entity = await strapi.service('plugin::users-permissions.user');
-
-      let cmt = "SELECT role_id FROM up_users_role_links where user_id=(select id from up_users where email=\'" + ctx.request.body.user.usermail + "\')";
 
       let returnable = {};
 
-      returnable.role_id = await strapi.db.connection.raw(cmt).then(async(obj) => {
-        if (obj[0].length != 0)
-          return obj[0][0].role_id;
-        else 
+      returnable.role_id = await strapi.db.query('plugin::users-permissions.user').findOne({
+        where: {
+          email: ctx.request.body.user.usermail,
+        },
+        populate: {
+          role: {
+            select: ['id', 'name']
+          }
+        }
+      }).then(async(obj) => {
+        if (obj == undefined)
           return {};
+        else
+          return obj.role.id;
       });
 
       if (JSON.stringify(returnable.role_id) == "{}")
         return returnable;
 
-      cmt = "SELECT id, created_at, creator, list_of_voters FROM test_collections where state=\'Polling\'";
-      
-      returnable.polls = await strapi.db.connection.raw(cmt).then(async (obj) => {
-        if (obj[0].length != 0)
-        {
-          return obj[0];
+      returnable.polls = await strapi.db.query('api::test-collection.test-collection').findMany({
+        select: ['id', 'created_at', 'creator', 'list_of_voters'],
+        where: {
+          state: "Polling"
         }
-        else 
-          return {};
-      });
+      }).then(async(obj) => {
+        return obj;
+     });
 
       for(let i=0;i<returnable.polls.length;i++) {    //for each live polls, iterating
         
-        let votedPersons = JSON.parse(returnable.polls[i].list_of_voters);
+        let votedPersons = returnable.polls[i].listOfVoters;
       
         if (votedPersons.find(element => element == ctx.request.body.user.usermail))
           returnable.polls[i].voted = true;
@@ -382,7 +386,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
           returnable.polls[i].voted = false;
 
         returnable.polls[i].votesCount = votedPersons.length;
-        delete returnable.polls[i].list_of_voters;
+        delete returnable.polls[i].listOfVoters;
       }
 
       return returnable;
@@ -405,7 +409,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         }
   
         let i = 0;
-        op.candidates.forEach(element => {
+        op.candidates.forEach(element => {      // **** Here we have sorting issue that, selecting the top candidate will be wrong when same no. of votes for multiple candidates //
           if(element.count > max.count)
           {
             max.count = element.count;

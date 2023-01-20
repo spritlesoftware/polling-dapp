@@ -16,6 +16,7 @@
     "@strapi/provider-upload-local": "^4.5.5",
     "@strapi/strapi": "4.5.5",
     "ethers": "^5.7.2",
+    "jsdoc": "^4.0.0",
     "mysql": "2.18.1",
     "strapi-plugin-custom-api": "^1.0.4"
   },
