@@ -16,7 +16,9 @@
 
 
 **Screenshot**: 
-![](https://raw.githubusercontent.com/spritlesoftware/polling-dapp/main/demoVideo/converted.mp4)
+
+
+https://user-images.githubusercontent.com/16348260/213775794-227815b2-86b6-488a-a379-937e1db6ad0e.mp4
 
 
 ## Dependencies
