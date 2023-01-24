@@ -341,7 +341,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
     /**
      * Get the user-group of the given user's mail-id, and returns the currently open-polls
      * @param {*} ctx Context-request will contains the user.usermail
-     * @returns corresponding user's userid if the given mail-id is registered
+     * @returns corresponding user's userid if the given mail-id is registered, and returns the list of open polls
      */
     async myRole(ctx) {
 
@@ -367,15 +367,24 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         return returnable;
 
       returnable.polls = await strapi.db.query('api::test-collection.test-collection').findMany({
-        select: ['id', 'created_at', 'creator', 'list_of_voters'],
+        select: ['id', 'created_at', 'creator', 'list_of_voters', 'contract_address'],
         where: {
           state: "Polling"
         }
       }).then(async(obj) => {
         return obj;
-     });
+      });
 
       for(let i=0;i<returnable.polls.length;i++) {    //for each live polls, iterating
+
+        await connectToContract(ctx.request.body.user, returnable.polls[i].contract_address)      // Connecting to contract
+        .then(async (votingContract) => {
+
+          await votingContract.getStatement()         //getting Statement of the poll
+              .then(async(statement) => {
+                returnable.polls[i].statement = statement;
+               });
+        });
         
         let votedPersons = returnable.polls[i].listOfVoters;
       
@@ -386,6 +395,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
 
         returnable.polls[i].votesCount = votedPersons.length;
         delete returnable.polls[i].listOfVoters;
+        delete returnable.polls[i].contract_address;
       }
 
       return returnable;
