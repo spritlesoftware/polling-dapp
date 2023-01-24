@@ -282,6 +282,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
     async getPollDetails(ctx) {
 
       let contractAddress = undefined;
+      let returnable = {};
 
       try {
         await strapi.service('api::test-collection.test-collection').findOne(ctx.request.body.contractId)   //Database search for contract with contract-id
@@ -301,8 +302,6 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
 
       if (contractAddress == undefined)
         return {"error": returnable};
-
-      let returnable = {};
 
       await connectToContract(ctx.request.body.user, contractAddress)      // Connecting to contract
         .then(async (votingContract) => {
@@ -409,6 +408,10 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         }
   
         let i = 0;
+
+        if (op == undefined || op.error != undefined)
+          return {};
+
         op.candidates.forEach(element => {      // **** Here we have sorting issue that, selecting the top candidate will be wrong when same no. of votes for multiple candidates //
           if(element.count > max.count)
           {
@@ -435,6 +438,53 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         delete max.i;
         return max;
       });
+    },
+    
+    /**
+     * Checks for list of contracts expiring with the current date and trigger the announceResult for those contracts
+     * @param {*} ctx Context request
+     * @returns the status of the function
+     */
+    async contractExpire(ctx) {
+      try {
+        return await strapi.db.query('api::test-collection.test-collection').findMany({
+          select: ['id', 'contract_address'],
+          where: {
+            $and: [
+              {
+                expiring: {
+                  $lt: new Date().toJSON().split('T')[0]      //To get current date, with the format of YYYY/MM/DD to filter less than this date
+                }
+              },
+              {
+                state: {
+                  $eq: 'Polling'
+                }
+              }
+            ],
+          }
+        }).then(async(obj) => {
+          if (obj == undefined)
+            return {};
+          else {
+            for(let i=0;i<obj.length;i++) {
+              ctx.request.body.contractId = obj[i].id;
+              await this.announceResult(ctx).then(async(output) => {
+                console.log("updated the contract: " + obj[i].id, output);
+              }).catch(err => {
+                console.log(err);
+              });
+            }
+            return {status: true};
+          }
+        }).catch(err => {
+          console.log(err);
+        });
+
+      } catch (ee) {
+        console.log(ee);
+        returnable.error = ee;
+      }
     }
 
   }));

@@ -45,6 +45,11 @@ module.exports = {
         method: 'POST',
         path: '/announceResult',
         handler: 'test-collection.announceResult',
+      },
+      {
+        method: 'GET',
+        path: '/contractExpire',
+        handler: 'test-collection.contractExpire'
       }
     ],
   };
