@@ -43,12 +43,13 @@ const connectToContract = async (userDet, _contractAddress) => {
     userDet = (userDet) ? userDet : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
     let user = (userDet.privateKey) ? userDet : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
 
+    if (_contractAddress == undefined)
+      return null;
+
     const votingContract = await getWeb3UserInit(false, user).then((signer) => {
       const contract = require(process.env.CONTRACT_ABI);  //Getting compiled solidity's ABI file as a JSON
-      const abi = contract.abi;                       // Get contract ABI
-      const contractAddress = (_contractAddress) ? _contractAddress : process.env.CONTRACT_DEPLOYED_ADDR;   //Contract's deployed address in the network
-      const votingContract = new ethers.Contract(contractAddress, abi, signer);   // Create a contract instance
-      return votingContract;
+      const abi = contract.abi;                            // Get contract ABI
+      return new ethers.Contract(_contractAddress, abi, signer);   // Create a contract instance
     });
     return votingContract;
   }
@@ -161,6 +162,10 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         checkAlreadyVoted = await entity.findOne(ctx.request.body.contractId).then(async(obj) => {
           if (obj == undefined) {
             error = "Given contract-id is not found on the DB";
+            return false;
+          }
+          if (obj.creator == ctx.request.body.user.usermail) {
+            error = "You are the owner, not able to vote";
             return false;
           }
           if (obj.listOfVoters.find(element => element == ctx.request.body.user.usermail)) {

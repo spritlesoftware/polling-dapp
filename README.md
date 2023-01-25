@@ -41,9 +41,12 @@ https://user-images.githubusercontent.com/16348260/213775794-227815b2-86b6-488a-
     - After you installed metamask in your mozilla-firefox browser, then change the network from 'Ethereum' (mainnet) to 'Goerli test network'
     - To deploy and do the transactions on Ethereum-testnet network, you need a testnet currency/token, and you can get it from [Goerli Faucets](https://goerlifaucet.com/). This GoerliETH can only be used in Goerli test network
   ### Alchemy - DApp
+  - Alchemy is one of the provider for Ethereum network. For [more](https://docs.alchemy.com/docs/ethers-js-provider#ethersjs-provider-use-cases)
   - Create your Alchemy account if you dont have
   - Then create a new DApp in [Alchemy dashboard](https://dashboard.alchemy.com/) - "Apps" menu
-  - After the app creation, you will get the API key from there
+    * Set CHAIN to **Ethereum**
+    * Set NETWORK to **Goerli** for testnet, **Mainnet** if for production usage
+  - After the app creation, you can get the API key from **VIEW KEY** button
   ### Google OAuth Web-credentials
   - In [Google cloud portal](https://console.cloud.google.com/apis/credentials), create a new credentials for our app, and configure the following:
       * Give Authorized Javascript Origins of your frontend origin and redirect URLs
@@ -65,15 +68,30 @@ https://user-images.githubusercontent.com/16348260/213775794-227815b2-86b6-488a-
   - Go to polling-dapp repo folder and run the following commands
       * ```npm install```
   - Then copy .env.example file to .env file and modify the file with your key values:
+      * ```HOST=0.0.0.0```
+        + IP address the backend service going to run. 0.0.0.0 is recommended for expose it on all the available IP's on the host server
+      * ```PORT=1337```
+        + Port on which the server should be running
+      * ```APP_KEYS="toBeModified1,toBeModified2"```
+        + Look into [Strapi doc](https://docs.strapi.io/developer-docs/latest/setup-deployment-guides/configurations/required/server.html#available-options)
+      * ```API_TOKEN_SALT=tobemodified```
+        + Look into [Strapi doc](https://docs.strapi.io/developer-docs/latest/setup-deployment-guides/configurations/required/admin-panel.html#available-options)
+      * ```ADMIN_JWT_SECRET=tobemodified```
+        + Look into [Strapi doc](https://docs.strapi.io/developer-docs/latest/setup-deployment-guides/configurations/required/admin-panel.html#available-options)
+      * ```JWT_SECRET=tobemodified```
+        + Look into [Strapi doc](https://docs.strapi.io/developer-docs/latest/setup-deployment-guides/configurations/required/admin-panel.html#available-options)
       * ```ALCHEMY_KEY=addYourKeyHere```
+        + Key copied from the Alchemy dashboard
       * ```ACCOUNT_PRIVATE_KEY=addYourEthereumWalletPrivateKey```
+        + Private key copied from metamask wallet
       * ```NETWORK="goerli"```
-      * ```CONTRACT_DEPLOYED_ADDR=addYourDeployedAccountsPublicAddress```
+        + If you ready to deploy it to Ethereum's Mainnet, change it to **mainnet**
       * ```CONTRACT_ABI=[yourPollingSmartContractCompiledLocation]```
+        + Copied from the polling-smart-contract repo step, after the compilation
   - In the root of this repo folder dump.sql file will be there, import it to your MySQL server
   - In ```/config/database.js``` file, give your database's credentials to connect with the DB. Here I have used with MySQL database
   - To run the project as a dev environment
-      * ```npm start dev```
+      * ```npm run develop```
   - This will run the service in all interface's IP in 1337 port
   ### Polling-DApp-Frontend
   - Go to polling-dapp-frontend folder and run the following commands
