@@ -93,6 +93,12 @@ https://user-images.githubusercontent.com/16348260/213775794-227815b2-86b6-488a-
   - To run the project as a dev environment
       * ```npm run develop```
   - This will run the service in all interface's IP in 1337 port
+      * Goto http://localhost:1337/admin
+		  * Create your super-admin account
+		  * create your API token to set it for all the frontend calls, Settings => API Tokens => Create new API Token
+			* You'll get a token key, copy that for your referecnce. this key will be used in polling-dapp-frontend
+		  * Set role-Authenticated to full permissions, on controller **test-collections**
+		  * set role-Public for **test-collection/contractExpire** API alone
   ### Polling-DApp-Frontend
   - Go to polling-dapp-frontend folder and run the following commands
       * ```npm install```

@@ -268,6 +268,10 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
             }
         };
         req.data.publishedAt = Date.now();
+
+        if (ctx.request.body.expiring)
+          req.data.expiring = ctx.request.body.expiring;
+
         await entity.create(req).then(async(obj) => {
           returnable.contracId = obj.id;
         });
