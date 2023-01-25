@@ -363,9 +363,12 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         }
       }).then(async(obj) => {
         if (obj == undefined)
-          return {};
+          return 0;
         else
           return obj.role.id;
+      }).catch(err => {
+        console.log("error: ", err);
+        return {};
       });
 
       if (JSON.stringify(returnable.role_id) == "{}")
