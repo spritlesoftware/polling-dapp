@@ -356,6 +356,9 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
 
       let returnable = {};
 
+      if (ctx.request.body.user.usermail == "" || ctx.request.body.user.usermail==undefined)
+        return {}
+
       returnable.role_id = await strapi.db.query('plugin::users-permissions.user').findOne({
         where: {
           email: ctx.request.body.user.usermail,
@@ -379,7 +382,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         return returnable;
 
       returnable.polls = await strapi.db.query('api::test-collection.test-collection').findMany({
-        select: ['id', 'created_at', 'creator', 'list_of_voters', 'contract_address'],
+        select: ['id', 'created_at', 'creator', 'list_of_voters', 'contract_address', 'expiring'],
         where: {
           state: "Polling"
         }
