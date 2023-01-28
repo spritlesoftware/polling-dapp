@@ -382,7 +382,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         return returnable;
 
       returnable.polls = await strapi.db.query('api::test-collection.test-collection').findMany({
-        select: ['id', 'created_at', 'creator', 'list_of_voters', 'contract_address', 'expiring'],
+        select: ['id', 'created_at', 'creator', 'list_of_voters', 'contract_address', 'expiring', 'result'],
         where: {
           state: "Polling"
         }

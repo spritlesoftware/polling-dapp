@@ -66,7 +66,7 @@ https://user-images.githubusercontent.com/16348260/213775794-227815b2-86b6-488a-
   - Copy this file's full location path to use in ```Polling-Dapp/.env``` file, and set it for the variable "CONTRACT_ABI"
   ### Polling-DApp ###
   - Go to polling-dapp repo folder and run the following commands
-      * ```npm install```
+      * ```npm install --force```
   - Then copy .env.example file to .env file and modify the file with your key values:
       * ```HOST=0.0.0.0```
         + IP address the backend service going to run. 0.0.0.0 is recommended for expose it on all the available IP's on the host server
@@ -95,13 +95,26 @@ https://user-images.githubusercontent.com/16348260/213775794-227815b2-86b6-488a-
   - This will run the service in all interface's IP in 1337 port
       * Goto http://localhost:1337/admin
 		  * Create your super-admin account
-		  * create your API token to set it for all the frontend calls, Settings => API Tokens => Create new API Token
+		  * Create your API token to set it for all the frontend calls, Settings => API Tokens => Create new API Token
 			* You'll get a token key, copy that for your referecnce. this key will be used in polling-dapp-frontend
 		  * Set role-Authenticated to full permissions, on controller **test-collections**
 		  * set role-Public for **test-collection/contractExpire** API alone
   ### Polling-DApp-Frontend
   - Go to polling-dapp-frontend folder and run the following commands
-      * ```npm install```
+      * ```npm install --force```
+      * Copy the **.env.example** file and as **.env** and modify it with your keys:
+        + ```REACT_APP_WEB3AUTH_CLIENTID```
+          - Copied client-id from Web3Auth's **Plug and Play** app page
+        + ```REACT_APP_GCP_CLIENT_SECRET```
+          - Copied client-secret id from Google console's **Credentials** page
+        + ```REACT_APP_BACKEND```
+          - Backend's (Strapi CMS - nodejs service) URL
+        + ```REACT_APP_LOGIN_ADAP_LOGO```
+          - Login adapter's logo URL you wish to add
+        + ```REACT_APP_BACKEND_TOKEN```
+          - API Token created on Strapi CMS, for authorize the REST calls
+        + ```REACT_APP_BLOCKCHAIN_ACCOUNT```
+          - Whether it can use Each user's private key to do the transactions on ethereum or use the default account. If True
       * ```npm run start```
    - This will run the front-end service in all interfaces's IP in 3000 port
 
