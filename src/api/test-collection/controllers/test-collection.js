@@ -19,15 +19,15 @@ const { createCoreController } = require('@strapi/strapi').factories;
 const getWeb3UserInit = async(localUser, user=null) => {
   const provider = new ethers.providers.AlchemyProvider(process.env.NETWORK, process.env.ALCHEMY_KEY);    // Define an Alchemy Provider
 
-  let privateKey = null;
+  let privatekey = null;
 
   if (localUser) {
-    privateKey = process.env.ACCOUNT_PRIVATE_KEY;     // Create a signer, with local privatekey
+    privatekey = process.env.ACCOUNT_PRIVATE_KEY;     // Create a signer, with local privatekey
   } else {
-    privateKey = user.privatekey;                     // Create a signer, with given privatekey
+    privatekey = user.privatekey;                     // Create a signer, with given privatekey
   }
 
-  const signer = new ethers.Wallet(privateKey, provider);  // Creating a wallet with the user's private key and provider
+  const signer = new ethers.Wallet(privatekey, provider);  // Creating a wallet with the user's private key and provider
 
   return signer;
 };
@@ -41,7 +41,7 @@ const getWeb3UserInit = async(localUser, user=null) => {
 const connectToContract = async (userDet, _contractAddress) => {
   try {
     userDet = (userDet) ? userDet : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
-    let user = (userDet.privateKey) ? userDet : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
+    let user = (userDet.privatekey) ? userDet : { "privatekey" : process.env.ACCOUNT_PRIVATE_KEY };
 
     if (_contractAddress == undefined)
       return null;
@@ -89,7 +89,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
           });
         } else {
           if (!ctx.request.body.user) {
-            returnable.error = "privateKey not shared";
+            returnable.error = "privatekey not shared";
             return returnable;
           }
           
