@@ -510,6 +510,47 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
         console.log(ee);
         returnable.error = ee;
       }
+    },
+
+    /**
+     * To get only the expired polls
+     * @param {*} ctx Context request object without any params
+     * @returns the list of poll's statement and other details
+     */
+    async expiredPolls(ctx) {
+      try {
+        return await strapi.db.query('api::test-collection.test-collection').findMany({
+          select: ['id', 'contract_address', 'creator', 'result'],
+          where: {
+                state: {
+                  $eq: "Polling_Ended"
+                }
+              }
+        }).then(async(obj) => {
+          if (obj == undefined)
+            return {};
+          else {
+            let returnable = [];
+            for(let i=0;i<obj.length;i++) {    //for each live polls, iterating
+              await connectToContract(undefined, obj[i].contract_address)      // Connecting to contract
+              .then(async (votingContract) => {
+                await votingContract.getStatement()         //getting Statement of the poll
+                    .then(async(statement) => {
+                      delete obj[i].contract_address;
+                      returnable.push({...obj[i], statement});
+                    });
+              });
+            }
+            return returnable;
+          }
+        }).catch(err => {
+          console.log(err);
+        });
+
+      } catch (ee) {
+        console.log(ee);
+        returnable.error = ee;
+      }
     }
 
   }));

@@ -50,6 +50,11 @@ module.exports = {
         method: 'GET',
         path: '/contractExpire',
         handler: 'test-collection.contractExpire'
+      },
+      {
+        method: 'GET',
+        path: '/expiredPolls',
+        handler: 'test-collection.expiredPolls'
       }
     ],
   };
