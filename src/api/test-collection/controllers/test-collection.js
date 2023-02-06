@@ -520,7 +520,7 @@ module.exports = createCoreController('api::test-collection.test-collection', ({
     async expiredPolls(ctx) {
       try {
         return await strapi.db.query('api::test-collection.test-collection').findMany({
-          select: ['id', 'contract_address', 'creator', 'result'],
+          select: ['id', 'contract_address', 'creator', 'result', 'created_at'],
           where: {
                 state: {
                   $eq: "Polling_Ended"
